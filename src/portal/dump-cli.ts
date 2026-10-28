@@ -7,7 +7,7 @@
  */
 
 import { SigaaSession, SigaaAuthError } from "../auth/session.ts";
-import { fetchPortal, fetchAllClasses, openTurmaVirtual } from "./portal.ts";
+import { fetchPortal, fetchAllClasses, fetchTurmaFull } from "./portal.ts";
 
 async function main(): Promise<void> {
   const username = process.env.SIGAA_USERNAME;
@@ -27,13 +27,13 @@ async function main(): Promise<void> {
     const portal = await fetchPortal(session);
     const allClasses = await fetchAllClasses(session);
 
-    // Also open the first enrolled turma's virtual classroom, if any.
+    // Also read the first enrolled turma's full virtual classroom, if any.
     const first = portal.enrolledClasses.find((c) => c.frontEndIdTurma);
-    const turmaVirtual = first?.frontEndIdTurma
-      ? await openTurmaVirtual(session, first.frontEndIdTurma)
+    const turma = first?.frontEndIdTurma
+      ? await fetchTurmaFull(session, first.frontEndIdTurma)
       : null;
 
-    console.log(JSON.stringify({ portal, allClasses, turmaVirtual }, null, 2));
+    console.log(JSON.stringify({ portal, allClasses, turma }, null, 2));
   } catch (err) {
     if (err instanceof SigaaAuthError) {
       console.error(`✗ ${err.message}`);

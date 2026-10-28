@@ -136,9 +136,29 @@ Parsed by `src/portal/parse-turma-virtual.ts`:
 | `.topico-aula` | one lesson topic: `.titulo` = title + `(dd/mm/yyyy - dd/mm/yyyy)` range; `.conteudotopico` = body text + materials |
 | material links | `<a onclick="jsfcljs(…{'id':'<fileId>'}…,'_blank')">name</a>` — the download is itself a postback on `formAva` carrying that file `id`; we capture name + fileId + the form/component (actual download TODO) |
 
-The AVA has more sections in its left menu (Notícias, Avaliações, Participantes,
-Materiais, Questionários, Referências, Mensagens, Enquetes), each reached by a
-further postback — not yet parsed.
+### AVA sections (left menu)
+
+Each left-menu item is another `formMenu` postback. `fetchTurmaFull()` opens the
+classroom once and then navigates each section **from that same opened page** —
+its view stays valid for repeated menu postbacks within the session, whereas
+chaining from each returned page proved unreliable (stale ViewState / component
+ids). Parsed by `src/portal/parse-turma-sections.ts`:
+
+| Menu item | Data parsed |
+|---|---|
+| Participantes | docentes + discentes: name, matrícula, usuário, e-mail, curso/formação, idPessoa |
+| Ver Notas | the student's own grade row: column labels, values, faltas, situação (colspan layout kept as labels+values, not force-mapped) |
+| Frequência | per-date presence (`Data`/`Situação`) + total faltas |
+| Tarefas | title, delivery period, graded?, submission count |
+| Avaliações | scheduled assessments: date, time code, description |
+| Notícias | class news: title + date |
+| Fóruns | forum list (title, date) — often empty |
+| Plano de Curso | label→value rows (Metodologia, Ementa, Procedimentos de Avaliação, …) from `table.listagem` where rows are `<th>Label:</th><td>value</td>` |
+
+Parsing note: SIGAA wraps the real data table in layout tables and pads rows with
+blank `<td>`s, so the parsers target **leaf tables** (no nested `<table>`) and
+drop empty cells. Sections not yet parsed: Arquivos, Referências, Questionários,
+Enquetes, Mensagens, Situação dos Discentes.
 
 ## Schedule codes
 

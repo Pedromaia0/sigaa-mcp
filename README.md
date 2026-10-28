@@ -11,9 +11,9 @@ Início, mas já lendo dados reais. Prontos:
 - **Login web via CAS** → sessão web autenticada (`JSESSIONID`) reusada nas requisições de página.
 - **Portal do discente** (`discente.jsf`): dados do aluno, turmas matriculadas (com horários decodificados), o feed de últimas atualizações por turma, próximas atividades (tarefas/avaliações), notícias institucionais e tópicos do fórum do curso.
 - **Histórico de turmas** (`turmas.jsf`, "Ver turmas anteriores"): todas as turmas, atuais e passadas, agrupadas por período.
-- **Turma virtual** (`ava/index.jsf`): abrir uma turma e ler seus Tópicos de Aula com datas, conteúdo e materiais anexados.
+- **Turma virtual** (`ava/index.jsf`): abrir uma turma e ler quase tudo — Tópicos de Aula (com datas, conteúdo e materiais), participantes (docentes e discentes), notas do próprio aluno, frequência, tarefas, avaliações, notícias da turma, fóruns e o plano de curso.
 
-Ainda não feito: download de materiais, as demais seções da AVA (notas, frequência, participantes), escrita de dados e o servidor MCP. Veja [`docs/SITE.md`](docs/SITE.md) para como o site funciona (stack, CAS, navegação por ViewState/POST do JSF, códigos de horário).
+Ainda não feito: download de materiais, algumas seções da AVA (Arquivos, Referências, Questionários, Enquetes), escrita de dados e o servidor MCP. Veja [`docs/SITE.md`](docs/SITE.md) para como o site funciona (stack, CAS, navegação por ViewState/POST do JSF, códigos de horário).
 
 ## Como o login funciona
 
@@ -43,7 +43,7 @@ import {
   SigaaSession,
   fetchPortal,
   fetchAllClasses,
-  openTurmaVirtual,
+  fetchTurmaFull,
 } from "sigaa-mcp";
 
 const session = new SigaaSession();
@@ -57,11 +57,12 @@ console.log(portal.forum);             // tópicos do fórum do curso
 
 const all = await fetchAllClasses(session);  // atuais + passadas, por período
 
-// Abre a turma virtual de uma turma e lê seus tópicos de aula + materiais.
+// Lê tudo de uma turma: tópicos, participantes, notas, frequência,
+// tarefas, avaliações, notícias, fóruns e plano de curso.
 const turma = portal.enrolledClasses.find((c) => c.frontEndIdTurma);
 if (turma?.frontEndIdTurma) {
-  const ava = await openTurmaVirtual(session, turma.frontEndIdTurma);
-  console.log(ava.header, ava.topics.length);
+  const full = await fetchTurmaFull(session, turma.frontEndIdTurma);
+  console.log(full.header, full.participants.length, full.grades, full.attendance);
 }
 ```
 
