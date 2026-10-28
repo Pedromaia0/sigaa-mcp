@@ -19,6 +19,8 @@ import type {
   TurmaFile,
   Questionnaire,
   Poll,
+  NewsDetail,
+  ParticipantProfile,
 } from "./turma-sections-types.ts";
 
 const DATE = /\d{2}\/\d{2}\/\d{4}/;
@@ -62,6 +64,11 @@ export function parseParticipants(html: string): Participant[] {
     if (!registration && !username && !email && !personId) continue;
     if (/:$/.test(name)) continue;
 
+    // Photo lives in a sibling cell of the same row (arquivos.info.ufrn.br URL);
+    // a default avatar (no_picture.png) means no photo.
+    const row = cell.parentNode;
+    const photoUrl = row?.querySelector("img[src*='arquivos.info.ufrn.br']")?.getAttribute("src");
+
     participants.push({
       role: registration ? "discente" : "docente",
       name,
@@ -71,6 +78,7 @@ export function parseParticipants(html: string): Participant[] {
       course: field("Curso"),
       formation: field("Formação"),
       personId,
+      photoUrl: photoUrl || undefined,
     });
   }
 
@@ -197,7 +205,13 @@ export function parseClassNews(html: string): ClassNews[] {
     if (r.querySelector("th")) continue;
     const c = r.querySelectorAll("td").map((x) => cleanText(x.text));
     if (!c[0]) continue;
-    out.push({ title: c[0], date: c.find((x) => DATE.test(x)) });
+    // The row's "Visualizar" link carries the idNoticia in its `id` param.
+    let id: string | undefined;
+    for (const a of r.querySelectorAll("a[onclick*=jsfcljs]")) {
+      const pid = parseJsfLink(a.getAttribute("onclick"))?.params["id"];
+      if (pid) { id = pid; break; }
+    }
+    out.push({ title: c[0], date: c.find((x) => DATE.test(x)), id });
   }
   return out;
 }
@@ -303,6 +317,64 @@ export function parsePolls(html: string): Poll[] {
     out.push({ title: c[0], status: c[1] });
   }
   return out;
+}
+
+/** News detail (Notícias → Visualizar): título, data e texto completo. */
+export function parseNewsDetail(html: string): NewsDetail {
+  const root = parse(html);
+  const center = root.querySelector(".ui-layout-center") ?? root;
+
+  // The detail is a label/value table: "Título:", "Data:", then the body.
+  const field = (label: string) => {
+    for (const r of center.querySelectorAll("tr")) {
+      const cs = r.querySelectorAll("th,td");
+      if (cs.length >= 2 && new RegExp(`^${label}`, "i").test(cleanText(cs[0]?.text))) {
+        return cleanText(cs[1]?.text);
+      }
+    }
+    return undefined;
+  };
+
+  const bodyEl = center.querySelector(".conteudoNoticia, td.conteudoNoticia");
+  const text = cleanText(center.text);
+  return {
+    title: field("Título") || text.match(/Título:\s*(.*?)\s*Data:/i)?.[1]?.trim() || "",
+    date: field("Data") || text.match(/Data:\s*(\d{2}\/\d{2}\/\d{4}(?:\s+\d{2}:\d{2})?)/i)?.[1],
+    text: bodyEl ? cleanText(bodyEl.text) : field("Texto") ?? field("Conteúdo"),
+  };
+}
+
+/** Participant profile from the A4J "Visualizar Perfil" partial response. */
+export function parseParticipantProfile(html: string): ParticipantProfile {
+  const root = parse(html);
+  const panel = root.querySelector("#basePanelPerfil") ?? root;
+  const text = cleanText(panel.text);
+
+  const field = (label: string) =>
+    text.match(
+      new RegExp(`${label}:\\s*(.*?)\\s*(?:Curso:|Matrícula:|Usuário:|E-?mail:|Formaç\\w+:|Departamento:|Descrição:|Lattes:|Perfil|Dados d|$)`, "i"),
+    )?.[1]?.trim() || undefined;
+
+  // Name is the text before "Dados do/da ..." (e.g. "Dados do Discente").
+  const name = text.match(/^(.*?)\s+Dados d[oa]\b/i)?.[1]?.trim();
+
+  const extra: Record<string, string> = {};
+  for (const label of ["Curso", "Matrícula", "Usuário", "E-mail", "Formação", "Departamento", "Descrição", "Lattes"]) {
+    const v = field(label);
+    if (v && !/não informad/i.test(v)) extra[label] = v;
+  }
+
+  return {
+    name: name || undefined,
+    registration: extra["Matrícula"],
+    username: extra["Usuário"],
+    email: extra["E-mail"],
+    course: extra["Curso"],
+    formation: extra["Formação"],
+    description: extra["Descrição"],
+    lattes: extra["Lattes"],
+    extra,
+  };
 }
 
 /** Plano de Curso: label→value rows (Ementa, Metodologia, Avaliação, …).

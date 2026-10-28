@@ -171,6 +171,32 @@ drop empty cells. Sections still not parsed: Conteúdo/Página web, Vídeos,
 Situação dos Discentes, Linha do Tempo. **Mensagens is not a turma section** —
 it's the per-person Caixa Postal (`Mensagem.show(...)`), not an AVA menu item.
 
+### Per-item detail (recursive)
+
+- **Notícias → Visualização de Notícia.** Each news row has a "Visualizar"
+  command link in the listing form (`j_id…_297`) carrying the `idNoticia` as its
+  `id` param. Posting it to `NoticiaTurma/listar.jsf` returns the full item
+  (título, data+hora, texto). `fetchNewsDetail` / `get_news_detail`. Repeated
+  drills from one listing page work (the server-side view stays live).
+- **Participantes → Visualizar Perfil.** A **RichFaces A4J** call, not a plain
+  postback: `A4J.AJAX.Submit('<form>', …, {parameters:{idPessoa:N,'<comp>':'<comp>'}, containerId:'<c>'})`.
+  Replayed as a POST to `participantes.jsf` with the form fields plus
+  `AJAXREQUEST=<containerId>`, `idPessoa=N` and `<comp>=<comp>`; the response is
+  an XML partial-response whose `#basePanelPerfil` holds the profile (curso,
+  matrícula, usuário, e-mail, descrição, Lattes). `fetchParticipantProfile` /
+  `get_participant_profile`.
+- **Participant photo.** Each row's `<img src>` is a **short-lived signed**
+  `arquivos.info.ufrn.br/get?k=…` URL (or the default avatar); it expires within
+  ~a minute, so `downloadParticipantPhoto` re-opens Participantes, reads the
+  current URL for the `personId` and fetches it immediately. `download_participant_photo`.
+- **Tarefas.** The per-row icon is `enviar_tarefa.png` — a submission (write)
+  action, not a read view — so there is no read-only task detail beyond the
+  listing. Avaliações likewise have no per-item detail.
+
+`fetchTurmaDeep` / `get_turma_deep` does all of this recursively: the full read
+plus every news item's text and every participant's profile (one request per
+item — slower).
+
 ### Downloading files
 
 Both lesson-topic materials and Arquivos entries download by replaying their

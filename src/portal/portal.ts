@@ -20,11 +20,19 @@ import {
   parseQuestionnaires,
   parsePolls,
   parseCoursePlan,
+  parseNewsDetail,
+  parseParticipantProfile,
 } from "./parse-turma-sections.ts";
 import { parseJsfLink, buildFormBody, cleanText, cssEscape } from "../util/jsf.ts";
 import type { PortalData, HistoricClass } from "./types.ts";
 import type { TurmaVirtual } from "./turma-virtual-types.ts";
-import type { TurmaFull, DownloadedFile } from "./turma-sections-types.ts";
+import type {
+  TurmaFull,
+  TurmaDeep,
+  DownloadedFile,
+  NewsDetail,
+  ParticipantProfile,
+} from "./turma-sections-types.ts";
 
 const PORTAL_PATH = "/sigaa/portais/discente/discente.jsf";
 const AVA_PATH = "/sigaa/ava/index.jsf";
@@ -152,6 +160,161 @@ export async function downloadTurmaFile(
   }
 
   throw new Error(`No downloadable file with id=${fileId} in turma ${frontEndIdTurma}`);
+}
+
+/** Open a turma's virtual classroom and return the raw AVA page HTML. */
+async function openAva(session: SigaaSession, frontEndIdTurma: string): Promise<string> {
+  const portalRoot = parse(await (await session.get(PORTAL_PATH)).text());
+  const open = findOpenLink(portalRoot, frontEndIdTurma);
+  if (!open) throw new Error(`No turma with frontEndIdTurma=${frontEndIdTurma} on the portal`);
+  return (await session.post(PORTAL_PATH, buildFormBody(portalRoot, open.formId, open.params))).text();
+}
+
+/**
+ * Full text of one class news item (Notícias → Visualizar), by its idNoticia
+ * (the `id` field on a `ClassNews` from fetchTurmaFull / get_turma).
+ */
+export async function fetchNewsDetail(
+  session: SigaaSession,
+  frontEndIdTurma: string,
+  newsId: string,
+): Promise<NewsDetail> {
+  const avaHtml = await openAva(session, frontEndIdTurma);
+  const listHtml = await navigateSection(session, avaHtml, "Notícias");
+  if (!listHtml) throw new Error("Could not open Notícias");
+  return drillNewsDetail(session, listHtml, newsId);
+}
+
+async function drillNewsDetail(
+  session: SigaaSession,
+  listHtml: string,
+  newsId: string,
+): Promise<NewsDetail> {
+  const root = parse(listHtml);
+  for (const a of root.querySelectorAll("a[onclick*=jsfcljs]")) {
+    const pb = parseJsfLink(a.getAttribute("onclick"));
+    if (pb?.params["id"] !== newsId) continue;
+    const action = root.querySelector(`#${cssEscape(pb.formId)}`)?.getAttribute("action") ?? AVA_PATH;
+    const detail = await (await session.post(action, buildFormBody(root, pb.formId, pb.params))).text();
+    return parseNewsDetail(detail);
+  }
+  throw new Error(`No news item with id=${newsId}`);
+}
+
+/**
+ * Extra profile detail for a participant (Participantes → Visualizar Perfil),
+ * by `personId` (the `personId` on a `Participant`). Replays the RichFaces A4J
+ * request that fills the profile dialog and parses the partial response.
+ */
+export async function fetchParticipantProfile(
+  session: SigaaSession,
+  frontEndIdTurma: string,
+  personId: string,
+): Promise<ParticipantProfile> {
+  const avaHtml = await openAva(session, frontEndIdTurma);
+  const listHtml = await navigateSection(session, avaHtml, "Participantes");
+  if (!listHtml) throw new Error("Could not open Participantes");
+  return drillProfile(session, listHtml, personId);
+}
+
+async function drillProfile(
+  session: SigaaSession,
+  listHtml: string,
+  personId: string,
+): Promise<ParticipantProfile> {
+  const root = parse(listHtml);
+  for (const a of root.querySelectorAll("a[onclick*=idPessoa]")) {
+    const onclick = a.getAttribute("onclick") ?? "";
+    if (onclick.match(/idPessoa['"]?\s*:\s*(\d+)/)?.[1] !== personId) continue;
+
+    const formId = onclick.match(/A4J\.AJAX\.Submit\('([^']+)'/)?.[1];
+    const comp = onclick.match(/parameters':\{[^}]*'([^']+)':'\1'/)?.[1];
+    const containerId = onclick.match(/containerId':'([^']+)'/)?.[1];
+    if (!formId || !comp || !containerId) break;
+
+    const action = root.querySelector(`#${cssEscape(formId)}`)?.getAttribute("action") ?? AVA_PATH;
+    const body = buildFormBody(root, formId, {
+      AJAXREQUEST: containerId,
+      idPessoa: personId,
+      [comp]: comp,
+    });
+    const resp = await (await session.post(action, body)).text();
+    return parseParticipantProfile(resp);
+  }
+  throw new Error(`No participant with personId=${personId}`);
+}
+
+/**
+ * Download a participant's profile photo by `personId`. The photo URL is a
+ * short-lived signed link, so this re-opens Participantes, reads the current
+ * URL for that person and fetches it immediately. Throws if they have no photo
+ * (default avatar).
+ */
+export async function downloadParticipantPhoto(
+  session: SigaaSession,
+  frontEndIdTurma: string,
+  personId: string,
+): Promise<DownloadedFile> {
+  const avaHtml = await openAva(session, frontEndIdTurma);
+  const listHtml = await navigateSection(session, avaHtml, "Participantes");
+  if (!listHtml) throw new Error("Could not open Participantes");
+
+  const participant = parseParticipants(listHtml).find((p) => p.personId === personId);
+  if (!participant) throw new Error(`No participant with personId=${personId}`);
+  if (!participant.photoUrl) throw new Error(`Participant ${personId} has no photo`);
+
+  const res = await session.get(participant.photoUrl);
+  const contentType = res.headers.get("content-type") ?? undefined;
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  if (bytes.length < 200) throw new Error(`Photo fetch failed (${bytes.length} bytes): the signed URL may have expired`);
+  // The bytes are the real image; trust the magic over the server's content-type.
+  const ext = bytes[0] === 0x89 ? "png" : "jpg";
+  return { filename: `foto-${personId}.${ext}`, contentType, bytes };
+}
+
+/**
+ * Read a turma recursively: everything fetchTurmaFull returns, plus each news
+ * item's full text and each participant's profile detail. Many requests — one
+ * drill per news item and per participant.
+ */
+export async function fetchTurmaDeep(
+  session: SigaaSession,
+  frontEndIdTurma: string,
+): Promise<TurmaDeep> {
+  const full = await fetchTurmaFull(session, frontEndIdTurma);
+
+  // Drill details from freshly-opened listings (one per section).
+  const avaHtml = await openAva(session, frontEndIdTurma);
+
+  const newsList = await navigateSection(session, avaHtml, "Notícias");
+  const newsDetailed = [];
+  for (const item of full.news) {
+    let detail: NewsDetail | undefined;
+    if (newsList && item.id) {
+      try {
+        detail = await drillNewsDetail(session, newsList, item.id);
+      } catch {
+        /* leave undefined */
+      }
+    }
+    newsDetailed.push({ ...item, detail });
+  }
+
+  const partList = await navigateSection(session, avaHtml, "Participantes");
+  const participantsDetailed = [];
+  for (const p of full.participants) {
+    let profile: ParticipantProfile | undefined;
+    if (partList && p.personId) {
+      try {
+        profile = await drillProfile(session, partList, p.personId);
+      } catch {
+        /* leave undefined */
+      }
+    }
+    participantsDetailed.push({ ...p, profile });
+  }
+
+  return { ...full, newsDetailed, participantsDetailed };
 }
 
 function findFileLink(

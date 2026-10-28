@@ -10,8 +10,24 @@ export interface Participant {
   /** Course (discentes) or academic background/"Formação" (docentes). */
   course?: string;
   formation?: string;
-  /** SIGAA person id, from the "visualizar perfil" link. */
+  /** SIGAA person id, from the "visualizar perfil" link; pass to fetchParticipantProfile. */
   personId?: string;
+  /** Profile-photo URL, when the person has one (absent = default avatar). */
+  photoUrl?: string;
+}
+
+/** Extra profile fields for a participant (from the "Visualizar Perfil" dialog). */
+export interface ParticipantProfile {
+  name?: string;
+  registration?: string;
+  username?: string;
+  email?: string;
+  course?: string;
+  formation?: string;
+  description?: string;
+  lattes?: string;
+  /** Any other labeled rows, label -> value. */
+  extra: Record<string, string>;
 }
 
 /** The student's own grades (Ver Notas). The table uses a colspan layout, so
@@ -64,6 +80,17 @@ export interface ClassNews {
   title: string;
   /** dd/mm/yyyy */
   date?: string;
+  /** idNoticia; pass to fetchNewsDetail for the full text. */
+  id?: string;
+}
+
+/** The full text of a class news item (Notícias → Visualizar). */
+export interface NewsDetail {
+  title: string;
+  /** dd/mm/yyyy hh:mm */
+  date?: string;
+  /** Full body text. */
+  text?: string;
 }
 
 /** A forum in the turma (Fóruns). */
@@ -114,6 +141,14 @@ export interface DownloadedFile {
   filename: string;
   contentType?: string;
   bytes: Uint8Array;
+}
+
+/** Everything from a turma, recursively: the full read plus each item's detail. */
+export interface TurmaDeep extends TurmaFull {
+  /** Each participant with their profile detail (Descrição, Lattes, …) merged in. */
+  participantsDetailed: (Participant & { profile?: ParticipantProfile })[];
+  /** Each news item with its full text. */
+  newsDetailed: (ClassNews & { detail?: NewsDetail })[];
 }
 
 /** Everything read from one turma's virtual classroom. */

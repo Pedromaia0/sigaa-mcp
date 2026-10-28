@@ -12,7 +12,8 @@ Início, mas já lendo dados reais. Prontos:
 - **Portal do discente** (`discente.jsf`): dados do aluno, turmas matriculadas (com horários decodificados), o feed de últimas atualizações por turma, próximas atividades (tarefas/avaliações), notícias institucionais e tópicos do fórum do curso.
 - **Histórico de turmas** (`turmas.jsf`, "Ver turmas anteriores"): todas as turmas, atuais e passadas, agrupadas por período.
 - **Turma virtual** (`ava/index.jsf`): abrir uma turma e ler quase tudo — Tópicos de Aula (com datas, conteúdo e materiais), participantes (docentes e discentes), notas do próprio aluno, frequência, tarefas, avaliações, notícias da turma, fóruns, referências, arquivos, questionários, enquetes e o plano de curso.
-- **Download de arquivos**: baixar qualquer material/arquivo da turma pelo `fileId` (`downloadTurmaFile`).
+- **Detalhes recursivos**: texto completo de cada notícia (`fetchNewsDetail`), perfil de cada participante (`fetchParticipantProfile`), e tudo de uma vez com `fetchTurmaDeep`.
+- **Download de arquivos e fotos**: baixar qualquer material/arquivo pelo `fileId` (`downloadTurmaFile`) e a foto de um participante pelo `personId` (`downloadParticipantPhoto`).
 - **Servidor MCP**: as funções acima expostas como ferramentas MCP por stdio (veja abaixo).
 
 Ainda não feito: algumas seções da AVA (Conteúdo/Página web, Vídeos, Linha do Tempo) e escrita de dados. Veja [`docs/SITE.md`](docs/SITE.md) para como o site funciona (stack, CAS, navegação por ViewState/POST do JSF, códigos de horário).
@@ -45,8 +46,12 @@ por stdio, para conectar em qualquer harness compatível (Claude Code, Claude
 Desktop, Codex, Cursor, …). O servidor lê as credenciais do ambiente e faz login
 automaticamente na primeira chamada.
 
-**Ferramentas:** `get_portal`, `get_all_classes`, `get_turma` (arg `frontEndIdTurma`),
-`download_file` (args `frontEndIdTurma`, `fileId`).
+**Ferramentas:** `get_portal`, `get_all_classes`, `get_turma` (arg
+`frontEndIdTurma`), `get_turma_deep` (recursiva: inclui o texto de cada notícia
+e o perfil de cada participante), `get_news_detail` (`frontEndIdTurma`,
+`newsId`), `get_participant_profile` (`frontEndIdTurma`, `personId`),
+`download_participant_photo` (`frontEndIdTurma`, `personId`) e `download_file`
+(`frontEndIdTurma`, `fileId`).
 
 ```bash
 npm install && npm run build

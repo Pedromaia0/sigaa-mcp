@@ -7,7 +7,11 @@ export {
   fetchAllClasses,
   openTurmaVirtual,
   fetchTurmaFull,
+  fetchTurmaDeep,
+  fetchNewsDetail,
+  fetchParticipantProfile,
   downloadTurmaFile,
+  downloadParticipantPhoto,
 } from "./portal/portal.ts";
 export { parsePortal } from "./portal/parse-portal.ts";
 export { parseTurmas } from "./portal/parse-turmas.ts";

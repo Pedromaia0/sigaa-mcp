@@ -26,7 +26,11 @@ import {
   fetchPortal,
   fetchAllClasses,
   fetchTurmaFull,
+  fetchTurmaDeep,
+  fetchNewsDetail,
+  fetchParticipantProfile,
   downloadTurmaFile,
+  downloadParticipantPhoto,
 } from "./portal/portal.ts";
 
 // --- lazy, auto-login session (one per server process) --------------------
@@ -125,6 +129,93 @@ server.registerTool(
   async ({ frontEndIdTurma }) => {
     try {
       return json(await fetchTurmaFull(await getSession(), frontEndIdTurma));
+    } catch (err) {
+      return fail(err);
+    }
+  },
+);
+
+server.registerTool(
+  "get_turma_deep",
+  {
+    title: "Turma completa (recursiva)",
+    description:
+      "Everything get_turma returns, PLUS the full text of every class news item " +
+      "and every participant's profile detail. Many requests — slower; use get_turma " +
+      "unless you need all details at once. Pass the `frontEndIdTurma` from get_portal.",
+    inputSchema: {
+      frontEndIdTurma: z.string().describe("The turma handle from get_portal"),
+    },
+  },
+  async ({ frontEndIdTurma }) => {
+    try {
+      return json(await fetchTurmaDeep(await getSession(), frontEndIdTurma));
+    } catch (err) {
+      return fail(err);
+    }
+  },
+);
+
+server.registerTool(
+  "get_news_detail",
+  {
+    title: "Detalhe de notícia da turma",
+    description: "Full text of one class news item, by its `id` (from get_turma's news[].id).",
+    inputSchema: {
+      frontEndIdTurma: z.string().describe("The turma handle from get_portal"),
+      newsId: z.string().describe("The news id from get_turma (news[].id)"),
+    },
+  },
+  async ({ frontEndIdTurma, newsId }) => {
+    try {
+      return json(await fetchNewsDetail(await getSession(), frontEndIdTurma, newsId));
+    } catch (err) {
+      return fail(err);
+    }
+  },
+);
+
+server.registerTool(
+  "get_participant_profile",
+  {
+    title: "Perfil de participante",
+    description:
+      "Extra profile detail (curso, matrícula, descrição, Lattes, …) for a participant, " +
+      "by `personId` (from get_turma's participants[].personId).",
+    inputSchema: {
+      frontEndIdTurma: z.string().describe("The turma handle from get_portal"),
+      personId: z.string().describe("The participant's personId from get_turma"),
+    },
+  },
+  async ({ frontEndIdTurma, personId }) => {
+    try {
+      return json(await fetchParticipantProfile(await getSession(), frontEndIdTurma, personId));
+    } catch (err) {
+      return fail(err);
+    }
+  },
+);
+
+server.registerTool(
+  "download_participant_photo",
+  {
+    title: "Baixar foto de participante",
+    description:
+      "Download a participant's profile photo by `personId`. Saves it locally and returns " +
+      "the path, filename, content type and size. Only works for participants who have a photo.",
+    inputSchema: {
+      frontEndIdTurma: z.string().describe("The turma handle from get_portal"),
+      personId: z.string().describe("The participant's personId from get_turma"),
+    },
+  },
+  async ({ frontEndIdTurma, personId }) => {
+    try {
+      const file = await downloadParticipantPhoto(await getSession(), frontEndIdTurma, personId);
+      const dir = process.env.SIGAA_DOWNLOAD_DIR || join(tmpdir(), "sigaa-downloads");
+      mkdirSync(dir, { recursive: true });
+      const path = join(dir, file.filename);
+      writeFileSync(path, file.bytes);
+      return json({ path, filename: file.filename, contentType: file.contentType, bytes: file.bytes.length });
     } catch (err) {
       return fail(err);
     }
