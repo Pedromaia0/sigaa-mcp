@@ -11,7 +11,8 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "login": "node --experimental-strip-types --env-file=.env src/auth/login-cli.ts"
+    "login": "node --experimental-strip-types --env-file=.env src/auth/login-cli.ts",
+    "portal": "node --experimental-strip-types --env-file=.env src/portal/dump-cli.ts"
   },
   "keywords": [
     "sigaa",
@@ -25,5 +26,8 @@
   "devDependencies": {
     "@types/node": "^22.10.0",
     "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "node-html-parser": "^7.0.1"
   }
 }
