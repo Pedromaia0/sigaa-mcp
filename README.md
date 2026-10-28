@@ -78,6 +78,14 @@ if (turma?.frontEndIdTurma) {
 
 Os padrões apontam para a UFRN (`sigaa.ufrn.br` / `autenticacao.ufrn.br`); sobrescreva pelo construtor do `SigaaSession` ou pelas variáveis de ambiente `SIGAA_BASE_URL` / `SIGAA_AUTH_BASE_URL`.
 
+## Regras acadêmicas da UFRN
+
+Para interpretar os dados (faltas, notas, prazos, situação de matrícula), há um
+resumo navegável das regras de graduação da UFRN, com citação de artigos, em
+[`docs/regras-ufrn/`](docs/regras-ufrn/) — frequência/faltas, avaliação/notas,
+matrícula, trancamento/suspensão e prazos/vínculo. Baseado no Regulamento dos
+Cursos de Graduação (Resolução nº 016/2023-CONSEPE, texto vigente de março/2025).
+
 ## Requisitos
 
 Node.js ≥ 20 (usa o `fetch` nativo com `Headers.getSetCookie()`). Uma dependência de runtime: [`node-html-parser`](https://www.npmjs.com/package/node-html-parser) para fazer o parsing do HTML do SIGAA.
