@@ -26,7 +26,6 @@ import {
   fetchPortal,
   fetchAllClasses,
   fetchTurmaFull,
-  fetchTurmaDeep,
   fetchNewsDetail,
   fetchParticipantProfile,
   downloadTurmaFile,
@@ -129,27 +128,6 @@ server.registerTool(
   async ({ frontEndIdTurma }) => {
     try {
       return json(await fetchTurmaFull(await getSession(), frontEndIdTurma));
-    } catch (err) {
-      return fail(err);
-    }
-  },
-);
-
-server.registerTool(
-  "get_turma_deep",
-  {
-    title: "Turma completa (recursiva)",
-    description:
-      "Everything get_turma returns, PLUS the full text of every class news item " +
-      "and every participant's profile detail. Many requests — slower; use get_turma " +
-      "unless you need all details at once. Pass the `frontEndIdTurma` from get_portal.",
-    inputSchema: {
-      frontEndIdTurma: z.string().describe("The turma handle from get_portal"),
-    },
-  },
-  async ({ frontEndIdTurma }) => {
-    try {
-      return json(await fetchTurmaDeep(await getSession(), frontEndIdTurma));
     } catch (err) {
       return fail(err);
     }

@@ -193,9 +193,9 @@ it's the per-person Caixa Postal (`Mensagem.show(...)`), not an AVA menu item.
   action, not a read view — so there is no read-only task detail beyond the
   listing. Avaliações likewise have no per-item detail.
 
-`fetchTurmaDeep` / `get_turma_deep` does all of this recursively: the full read
-plus every news item's text and every participant's profile (one request per
-item — slower).
+Each of these is a per-item fetch keyed by the item's id (`news[].id`,
+`participants[].personId`) from `get_turma` / `fetchTurmaFull` — fetch an item's
+detail when you need it, rather than all at once.
 
 ### Downloading files
 

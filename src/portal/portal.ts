@@ -28,7 +28,6 @@ import type { PortalData, HistoricClass } from "./types.ts";
 import type { TurmaVirtual } from "./turma-virtual-types.ts";
 import type {
   TurmaFull,
-  TurmaDeep,
   DownloadedFile,
   NewsDetail,
   ParticipantProfile,
@@ -270,51 +269,6 @@ export async function downloadParticipantPhoto(
   // The bytes are the real image; trust the magic over the server's content-type.
   const ext = bytes[0] === 0x89 ? "png" : "jpg";
   return { filename: `foto-${personId}.${ext}`, contentType, bytes };
-}
-
-/**
- * Read a turma recursively: everything fetchTurmaFull returns, plus each news
- * item's full text and each participant's profile detail. Many requests — one
- * drill per news item and per participant.
- */
-export async function fetchTurmaDeep(
-  session: SigaaSession,
-  frontEndIdTurma: string,
-): Promise<TurmaDeep> {
-  const full = await fetchTurmaFull(session, frontEndIdTurma);
-
-  // Drill details from freshly-opened listings (one per section).
-  const avaHtml = await openAva(session, frontEndIdTurma);
-
-  const newsList = await navigateSection(session, avaHtml, "Notícias");
-  const newsDetailed = [];
-  for (const item of full.news) {
-    let detail: NewsDetail | undefined;
-    if (newsList && item.id) {
-      try {
-        detail = await drillNewsDetail(session, newsList, item.id);
-      } catch {
-        /* leave undefined */
-      }
-    }
-    newsDetailed.push({ ...item, detail });
-  }
-
-  const partList = await navigateSection(session, avaHtml, "Participantes");
-  const participantsDetailed = [];
-  for (const p of full.participants) {
-    let profile: ParticipantProfile | undefined;
-    if (partList && p.personId) {
-      try {
-        profile = await drillProfile(session, partList, p.personId);
-      } catch {
-        /* leave undefined */
-      }
-    }
-    participantsDetailed.push({ ...p, profile });
-  }
-
-  return { ...full, newsDetailed, participantsDetailed };
 }
 
 function findFileLink(

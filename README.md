@@ -12,7 +12,7 @@ Início, mas já lendo dados reais. Prontos:
 - **Portal do discente** (`discente.jsf`): dados do aluno, turmas matriculadas (com horários decodificados), o feed de últimas atualizações por turma, próximas atividades (tarefas/avaliações), notícias institucionais e tópicos do fórum do curso.
 - **Histórico de turmas** (`turmas.jsf`, "Ver turmas anteriores"): todas as turmas, atuais e passadas, agrupadas por período.
 - **Turma virtual** (`ava/index.jsf`): abrir uma turma e ler quase tudo — Tópicos de Aula (com datas, conteúdo e materiais), participantes (docentes e discentes), notas do próprio aluno, frequência, tarefas, avaliações, notícias da turma, fóruns, referências, arquivos, questionários, enquetes e o plano de curso.
-- **Detalhes recursivos**: texto completo de cada notícia (`fetchNewsDetail`), perfil de cada participante (`fetchParticipantProfile`), e tudo de uma vez com `fetchTurmaDeep`.
+- **Detalhes por item**: texto completo de uma notícia (`fetchNewsDetail`) e perfil de um participante (`fetchParticipantProfile`) — buscados individualmente pelo id do item.
 - **Download de arquivos e fotos**: baixar qualquer material/arquivo pelo `fileId` (`downloadTurmaFile`) e a foto de um participante pelo `personId` (`downloadParticipantPhoto`).
 - **Servidor MCP**: as funções acima expostas como ferramentas MCP por stdio (veja abaixo).
 
@@ -47,11 +47,11 @@ Desktop, Codex, Cursor, …). O servidor lê as credenciais do ambiente e faz lo
 automaticamente na primeira chamada.
 
 **Ferramentas:** `get_portal`, `get_all_classes`, `get_turma` (arg
-`frontEndIdTurma`), `get_turma_deep` (recursiva: inclui o texto de cada notícia
-e o perfil de cada participante), `get_news_detail` (`frontEndIdTurma`,
-`newsId`), `get_participant_profile` (`frontEndIdTurma`, `personId`),
+`frontEndIdTurma`), `get_news_detail` (`frontEndIdTurma`, `newsId`),
+`get_participant_profile` (`frontEndIdTurma`, `personId`),
 `download_participant_photo` (`frontEndIdTurma`, `personId`) e `download_file`
-(`frontEndIdTurma`, `fileId`).
+(`frontEndIdTurma`, `fileId`). Os detalhes de cada item são buscados
+individualmente pelo id (`news[].id`, `participants[].personId`), sob demanda.
 
 ```bash
 npm install && npm run build

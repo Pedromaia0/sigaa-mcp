@@ -143,13 +143,6 @@ export interface DownloadedFile {
   bytes: Uint8Array;
 }
 
-/** Everything from a turma, recursively: the full read plus each item's detail. */
-export interface TurmaDeep extends TurmaFull {
-  /** Each participant with their profile detail (Descrição, Lattes, …) merged in. */
-  participantsDetailed: (Participant & { profile?: ParticipantProfile })[];
-  /** Each news item with its full text. */
-  newsDetailed: (ClassNews & { detail?: NewsDetail })[];
-}
 
 /** Everything read from one turma's virtual classroom. */
 export interface TurmaFull {

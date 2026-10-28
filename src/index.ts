@@ -7,7 +7,6 @@ export {
   fetchAllClasses,
   openTurmaVirtual,
   fetchTurmaFull,
-  fetchTurmaDeep,
   fetchNewsDetail,
   fetchParticipantProfile,
   downloadTurmaFile,
