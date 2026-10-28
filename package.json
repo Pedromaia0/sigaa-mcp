@@ -1,0 +1,29 @@
+{
+  "name": "sigaa-mcp",
+  "version": "0.0.1",
+  "description": "Agent-oriented client for the SIGAA web interface (not the official API). Connects, fetches and — later — writes data on SIGAA for use by coding agents via MCP.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "login": "node --experimental-strip-types --env-file=.env src/auth/login-cli.ts"
+  },
+  "keywords": [
+    "sigaa",
+    "ufrn",
+    "mcp",
+    "agent",
+    "scraping",
+    "cas"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}
