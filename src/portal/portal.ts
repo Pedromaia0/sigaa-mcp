@@ -15,12 +15,16 @@ import {
   parseAssessments,
   parseClassNews,
   parseForums,
+  parseReferences,
+  parseArquivos,
+  parseQuestionnaires,
+  parsePolls,
   parseCoursePlan,
 } from "./parse-turma-sections.ts";
-import { parseJsfLink, buildFormBody, cleanText } from "../util/jsf.ts";
+import { parseJsfLink, buildFormBody, cleanText, cssEscape } from "../util/jsf.ts";
 import type { PortalData, HistoricClass } from "./types.ts";
 import type { TurmaVirtual } from "./turma-virtual-types.ts";
-import type { TurmaFull } from "./turma-sections-types.ts";
+import type { TurmaFull, DownloadedFile } from "./turma-sections-types.ts";
 
 const PORTAL_PATH = "/sigaa/portais/discente/discente.jsf";
 const AVA_PATH = "/sigaa/ava/index.jsf";
@@ -96,6 +100,10 @@ export async function fetchTurmaFull(
   const assessmentsHtml = await section("Avaliações");
   const newsHtml = await section("Notícias");
   const forumsHtml = await section("Fóruns");
+  const referencesHtml = await section("Referências");
+  const arquivosHtml = await section("Arquivos");
+  const questionnairesHtml = await section("Questionários");
+  const pollsHtml = await section("Enquetes");
   const planHtml = await section("Plano de Curso");
 
   return {
@@ -108,7 +116,72 @@ export async function fetchTurmaFull(
     assessments: assessmentsHtml ? parseAssessments(assessmentsHtml) : [],
     news: newsHtml ? parseClassNews(newsHtml) : [],
     forums: forumsHtml ? parseForums(forumsHtml) : [],
+    references: referencesHtml ? parseReferences(referencesHtml) : [],
+    files: arquivosHtml ? parseArquivos(arquivosHtml) : [],
+    questionnaires: questionnairesHtml ? parseQuestionnaires(questionnairesHtml) : [],
+    polls: pollsHtml ? parsePolls(pollsHtml) : [],
     coursePlan: planHtml ? parseCoursePlan(planHtml) : {},
+  };
+}
+
+/**
+ * Download a file published in a turma (a lesson-topic material or an Arquivos
+ * entry) by its `fileId`. Opens the turma for a fresh ViewState, finds the
+ * download link on the classroom page (falling back to the Arquivos listing),
+ * replays the postback, and returns the bytes + server filename/content-type.
+ */
+export async function downloadTurmaFile(
+  session: SigaaSession,
+  frontEndIdTurma: string,
+  fileId: string,
+): Promise<DownloadedFile> {
+  const portalRoot = parse(await (await session.get(PORTAL_PATH)).text());
+  const open = findOpenLink(portalRoot, frontEndIdTurma);
+  if (!open) throw new Error(`No turma with frontEndIdTurma=${frontEndIdTurma} on the portal`);
+  const avaHtml = await (await session.post(PORTAL_PATH, buildFormBody(portalRoot, open.formId, open.params))).text();
+
+  // Try the classroom page (topic materials) first.
+  let hit = findFileLink(parse(avaHtml), fileId);
+  if (hit) return fetchDownload(session, avaHtml, hit);
+
+  // Fall back to the Arquivos listing (different id space for the same files).
+  const arquivosHtml = await navigateSection(session, avaHtml, "Arquivos");
+  if (arquivosHtml) {
+    hit = findFileLink(parse(arquivosHtml), fileId);
+    if (hit) return fetchDownload(session, arquivosHtml, hit);
+  }
+
+  throw new Error(`No downloadable file with id=${fileId} in turma ${frontEndIdTurma}`);
+}
+
+function findFileLink(
+  root: HTMLElement,
+  fileId: string,
+): { formId: string; params: Record<string, string> } | null {
+  for (const a of root.querySelectorAll("a[onclick*=jsfcljs]")) {
+    const pb = parseJsfLink(a.getAttribute("onclick"));
+    if (pb?.params["id"] === fileId) return pb;
+  }
+  return null;
+}
+
+async function fetchDownload(
+  session: SigaaSession,
+  sourceHtml: string,
+  link: { formId: string; params: Record<string, string> },
+): Promise<DownloadedFile> {
+  const root = parse(sourceHtml);
+  const body = buildFormBody(root, link.formId, link.params);
+  // Post to the form's own action (topic materials use index.jsf; the Arquivos
+  // listing uses ArquivoTurma/listar_discente.jsf).
+  const action = root.querySelector(`#${cssEscape(link.formId)}`)?.getAttribute("action") ?? AVA_PATH;
+  const res = await session.post(action, body);
+  const disposition = res.headers.get("content-disposition") ?? "";
+  const filename = disposition.match(/filename="?([^"]+)"?/)?.[1] ?? `file-${link.params["id"]}`;
+  return {
+    filename,
+    contentType: res.headers.get("content-type") ?? undefined,
+    bytes: new Uint8Array(await res.arrayBuffer()),
   };
 }
 

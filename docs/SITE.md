@@ -81,6 +81,12 @@ Consequences:
 - **ViewState is per-response and mandatory.** Each rendered page has one (or
   more) `javax.faces.ViewState` values; POSTing a stale one yields a
   `ViewExpired` error. Always read the ViewState from the page you're acting on.
+  It is **server-side state** — the value is a short key (e.g. `j_id2`), not a
+  serialized tree — so you cannot fabricate or edit it. Verified empirically: a
+  postback with a bogus `javax.faces.ViewState=j_id999` is rejected and bounced
+  to the main menu, while the real token returns the requested page. Server-side
+  state also keeps only a bounded number of logical views per session, which is
+  why navigating many pages in a chain eventually fails (old views evicted).
 - **State is server-side and sequential.** Some pages only make sense after
   visiting a prior page in the same session (it sets server-side context). E.g.
   `turmas.jsf` expects the discente portal to have been loaded first — so
@@ -153,12 +159,29 @@ ids). Parsed by `src/portal/parse-turma-sections.ts`:
 | Avaliações | scheduled assessments: date, time code, description |
 | Notícias | class news: title + date |
 | Fóruns | forum list (title, date) — often empty |
+| Referências | bibliographic/web references: name, type, URL, tópico |
+| Arquivos | every file published in the turma: name, tópico, download id |
+| Questionários | list; empty-detected via "Nenhum item foi encontrado" (populated shape unverified) |
+| Enquetes | same as Questionários |
 | Plano de Curso | label→value rows (Metodologia, Ementa, Procedimentos de Avaliação, …) from `table.listagem` where rows are `<th>Label:</th><td>value</td>` |
 
 Parsing note: SIGAA wraps the real data table in layout tables and pads rows with
 blank `<td>`s, so the parsers target **leaf tables** (no nested `<table>`) and
-drop empty cells. Sections not yet parsed: Arquivos, Referências, Questionários,
-Enquetes, Mensagens, Situação dos Discentes.
+drop empty cells. Sections still not parsed: Conteúdo/Página web, Vídeos,
+Situação dos Discentes, Linha do Tempo. **Mensagens is not a turma section** —
+it's the per-person Caixa Postal (`Mensagem.show(...)`), not an AVA menu item.
+
+### Downloading files
+
+Both lesson-topic materials and Arquivos entries download by replaying their
+`jsfcljs(... {'id':'<fileId>'} ...)` postback. `downloadTurmaFile(session,
+frontEndIdTurma, fileId)` opens the turma for a fresh ViewState, finds the link
+with that id (classroom page first, then the Arquivos listing), and POSTs to the
+**form's own `action`** — `ava/index.jsf` for topic materials,
+`ava/ArquivoTurma/listar_discente.jsf` for Arquivos. The response is the file
+itself: `Content-Type` + `Content-Disposition: attachment; filename="…"`. Note
+the two listings use different id spaces for the same file, so a given `fileId`
+only resolves on the page it came from.
 
 ## Schedule codes
 
@@ -175,7 +198,7 @@ clock times (e.g. `M3` = 08:55–09:45) and the decoder live in
 
 ## Open questions / TODO
 
-- Trigger the material-download postback (`formAva` + file `id`) to fetch files.
-- Parse the other AVA sections (frequência, notas/avaliações, participantes, tarefas).
+- Parse the remaining AVA sections (Conteúdo/Página web, Vídeos, Situação dos Discentes, Linha do Tempo).
+- Validate Questionários/Enquetes parsing against a turma that actually has them.
 - Catalogue which actions are plain GET vs JSF postbacks (for the write phase).
 - Confirm session lifetime / `tempoSessao` behavior and re-login strategy.

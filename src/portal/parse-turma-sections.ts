@@ -5,6 +5,7 @@
 
 import { parse, type HTMLElement } from "node-html-parser";
 import { cleanText } from "../util/jsf.ts";
+import { parseJsfLink } from "../util/jsf.ts";
 import type {
   Participant,
   Grades,
@@ -14,6 +15,10 @@ import type {
   Assessment,
   ClassNews,
   TurmaForum,
+  Reference,
+  TurmaFile,
+  Questionnaire,
+  Poll,
 } from "./turma-sections-types.ts";
 
 const DATE = /\d{2}\/\d{2}\/\d{4}/;
@@ -212,6 +217,90 @@ export function parseForums(html: string): TurmaForum[] {
     const title = cleanText(link?.text) || c[0];
     if (!title) continue;
     out.push({ title, date: c.find((x) => DATE.test(x)) });
+  }
+  return out;
+}
+
+/** Referências: bibliographic/web references (Nome | Tipo | URL | Tópico). */
+export function parseReferences(html: string): Reference[] {
+  const root = parse(html);
+
+  const table = leafTables(root).find((t) => {
+    const head = t.querySelector("tr");
+    return head && /Nome/i.test(head.text) && /Tipo|URL/i.test(head.text);
+  });
+  if (!table) return [];
+
+  const out: Reference[] = [];
+  for (const r of table.querySelectorAll("tr")) {
+    if (r.querySelector("th")) continue;
+    const tds = r.querySelectorAll("td");
+    const name = cleanText(tds[0]?.text);
+    if (!name) continue;
+    const href = tds[2]?.querySelector("a")?.getAttribute("href");
+    const url = href && href !== "#" && !/^https?:\/\/\/?$/.test(href.trim()) ? href.trim() : undefined;
+    out.push({
+      name,
+      type: cleanText(tds[1]?.text) || undefined,
+      url,
+      topic: cleanText(tds[3]?.text) || undefined,
+    });
+  }
+  return out;
+}
+
+/** Arquivos: every file published in the turma — name, topic, download id.
+ *  Rows are `<td>name</td><td/><td>topic</td><td><a jsfcljs(...,{id})>⬇</a></td>`. */
+export function parseArquivos(html: string): TurmaFile[] {
+  const root = parse(html);
+
+  const files: TurmaFile[] = [];
+  for (const r of root.querySelectorAll("tr")) {
+    const link = r.querySelector("a[onclick*=jsfcljs]");
+    const fileId = link ? parseJsfLink(link.getAttribute("onclick"))?.params["id"] : undefined;
+    if (!fileId) continue;
+    const tds = r.querySelectorAll("td");
+    const name = cleanText(tds[0]?.text);
+    if (!name) continue;
+    files.push({ name, topic: cleanText(tds[2]?.text) || undefined, fileId });
+  }
+  return files;
+}
+
+/** True when the section's center content says it is empty. */
+function isEmptySection(root: HTMLElement): boolean {
+  const center = root.querySelector(".ui-layout-center") ?? root;
+  return /Nenhum item foi encontrado|Nenhum[a]? .{0,30} (encontrad|cadastrad)/i.test(center.text);
+}
+
+/** Questionários. Empty in the sampled turmas; populated shape is best-effort. */
+export function parseQuestionnaires(html: string): Questionnaire[] {
+  const root = parse(html);
+  if (isEmptySection(root)) return [];
+
+  const out: Questionnaire[] = [];
+  const table = leafTables(root).find((t) => /Título|Questionário/i.test(t.text) && t.querySelector("a"));
+  for (const r of table?.querySelectorAll("tr") ?? []) {
+    if (r.querySelector("th")) continue;
+    const c = r.querySelectorAll("td").map((x) => cleanText(x.text)).filter(Boolean);
+    if (!c[0]) continue;
+    out.push({ title: c[0], period: c.find((x) => DATE.test(x)), status: c[c.length - 1] });
+  }
+  return out;
+}
+
+/** Enquetes. Empty in the sampled turmas; populated shape is best-effort. */
+export function parsePolls(html: string): Poll[] {
+  const root = parse(html);
+  if (isEmptySection(root)) return [];
+
+  const out: Poll[] = [];
+  const table = leafTables(root).find((t) => /Enquete|Título|Pergunta/i.test(t.text) && t.querySelector("a"));
+  for (const r of table?.querySelectorAll("tr") ?? []) {
+    if (r.querySelector("th")) continue;
+    const c = r.querySelectorAll("td").map((x) => cleanText(x.text)).filter(Boolean);
+    if (!c[0]) continue;
+    out.push({ title: c[0], status: c[1] });
   }
   return out;
 }

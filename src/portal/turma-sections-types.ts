@@ -74,6 +74,48 @@ export interface TurmaForum {
   date?: string;
 }
 
+/** A bibliographic/web reference (Referências). */
+export interface Reference {
+  name: string;
+  /** e.g. "Livro", "Artigo", "Site". */
+  type?: string;
+  /** External URL, when the reference is a link. */
+  url?: string;
+  /** Associated lesson topic, when shown. */
+  topic?: string;
+}
+
+/** A downloadable handle for a file published in the turma. Pass the `fileId`
+ *  to `downloadTurmaFile` to fetch the bytes. */
+export interface TurmaFile {
+  name: string;
+  /** Lesson topic the file belongs to (Arquivos lists this). */
+  topic?: string;
+  /** File id for the download postback. */
+  fileId: string;
+}
+
+/** A questionnaire (Questionários). Shape is best-effort; the sampled turmas
+ *  had none, so populated parsing is unverified. */
+export interface Questionnaire {
+  title: string;
+  period?: string;
+  status?: string;
+}
+
+/** A poll (Enquetes). Same caveat as Questionnaire. */
+export interface Poll {
+  title: string;
+  status?: string;
+}
+
+/** Bytes of a downloaded file plus its server-provided metadata. */
+export interface DownloadedFile {
+  filename: string;
+  contentType?: string;
+  bytes: Uint8Array;
+}
+
 /** Everything read from one turma's virtual classroom. */
 export interface TurmaFull {
   header: import("./turma-virtual-types.ts").TurmaVirtualHeader;
@@ -85,6 +127,11 @@ export interface TurmaFull {
   assessments: Assessment[];
   news: ClassNews[];
   forums: TurmaForum[];
+  references: Reference[];
+  /** Every file published in the turma (Arquivos), with download handles. */
+  files: TurmaFile[];
+  questionnaires: Questionnaire[];
+  polls: Poll[];
   /** Plano de Curso label→value rows (Ementa, Metodologia, Avaliação, …). */
   coursePlan: Record<string, string>;
 }
