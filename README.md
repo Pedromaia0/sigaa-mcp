@@ -1,42 +1,42 @@
 # sigaa-mcp
 
-Agent-oriented client for **SIGAA** (Sistema Integrado de Gestão de Atividades Acadêmicas), built on the **web interface** — the HTML pages a browser uses — not the official mobile/OAuth API. It is meant to be driven by coding agents (Claude, Codex, Antigravity, …), eventually exposed over **MCP** (Model Context Protocol).
+Cliente do **SIGAA** (Sistema Integrado de Gestão de Atividades Acadêmicas) orientado a agentes, construído sobre a **interface web** — as páginas HTML (HyperText Markup Language) que um navegador usa — e **não** sobre a API (Application Programming Interface) oficial mobile/OAuth. A ideia é ser conduzido por agentes de código (Claude, Codex, Antigravity, …), e futuramente exposto via **MCP** (Model Context Protocol).
 
-Scope: connect and fetch data now; write data later.
+Escopo: conectar e ler dados agora; escrever dados depois.
 
-## Status
+## Situação
 
-Early, but reading real data. In place:
+Início, mas já lendo dados reais. Prontos:
 
-- **CAS web login** → authenticated web session (`JSESSIONID`) reused for page requests.
-- **Discente portal** (`discente.jsf`): student info, enrolled classes (with decoded schedules), the per-class updates feed, upcoming activities (tasks/exams), institutional news, and course-forum topics.
-- **Class history** (`turmas.jsf`, "Ver turmas anteriores"): all classes, current and past, grouped by period.
-- **Virtual classroom** (`ava/index.jsf`): open a turma and read its lesson topics (Tópicos de Aula) with dates, content, and attached materials.
+- **Login web via CAS** → sessão web autenticada (`JSESSIONID`) reusada nas requisições de página.
+- **Portal do discente** (`discente.jsf`): dados do aluno, turmas matriculadas (com horários decodificados), o feed de últimas atualizações por turma, próximas atividades (tarefas/avaliações), notícias institucionais e tópicos do fórum do curso.
+- **Histórico de turmas** (`turmas.jsf`, "Ver turmas anteriores"): todas as turmas, atuais e passadas, agrupadas por período.
+- **Turma virtual** (`ava/index.jsf`): abrir uma turma e ler seus Tópicos de Aula com datas, conteúdo e materiais anexados.
 
-Not built yet: material downloads, the other AVA sections (grades, attendance, participants), writes, and the MCP server. See [`docs/SITE.md`](docs/SITE.md) for how the site works (stack, CAS, JSF ViewState/POST navigation, schedule codes).
+Ainda não feito: download de materiais, as demais seções da AVA (notas, frequência, participantes), escrita de dados e o servidor MCP. Veja [`docs/SITE.md`](docs/SITE.md) para como o site funciona (stack, CAS, navegação por ViewState/POST do JSF, códigos de horário).
 
-## How login works
+## Como o login funciona
 
-Standard **CAS** (Central Authentication Service) handshake against UFRN's auth server:
+Handshake padrão do **CAS** (Central Authentication Service) contra o servidor de autenticação da UFRN:
 
-1. `GET` the CAS login form → read hidden `lt` and `execution` fields.
-2. `POST` `username` / `password` / `lt` / `execution` → receive a `ticket=ST-…`.
-3. Follow the ticket to SIGAA → SIGAA validates it and sets a `JSESSIONID` session cookie.
+1. `GET` no formulário de login do CAS → lê os campos ocultos `lt` e `execution`.
+2. `POST` com `username` / `password` / `lt` / `execution` → recebe um `ticket=ST-…`.
+3. Segue o ticket até o SIGAA → o SIGAA valida e define o cookie de sessão `JSESSIONID`.
 
-The `SigaaSession` object then carries that cookie jar for subsequent requests.
+O objeto `SigaaSession` então carrega esse cookie jar nas requisições seguintes.
 
-## Try it
+## Experimente
 
 ```bash
 npm install
-cp .env.example .env     # fill in SIGAA_USERNAME / SIGAA_PASSWORD
-npm run login            # smoke-test the CAS login
-npm run portal           # fetch + print portal and full class history as JSON
+cp .env.example .env     # preencha SIGAA_USERNAME / SIGAA_PASSWORD
+npm run login            # testa o login via CAS
+npm run portal           # busca e imprime o portal e o histórico de turmas em JSON
 ```
 
-Credentials are read from environment variables only. **Never commit `.env`** — it is gitignored.
+As credenciais são lidas apenas de variáveis de ambiente. **Nunca faça commit do `.env`** — ele está no gitignore.
 
-## Usage
+## Uso
 
 ```ts
 import {
@@ -51,13 +51,13 @@ await session.login(process.env.SIGAA_USERNAME!, process.env.SIGAA_PASSWORD!);
 
 const portal = await fetchPortal(session);
 console.log(portal.student.name, portal.enrolledClasses.length);
-console.log(portal.activities);        // upcoming tasks/exams
-console.log(portal.news);              // institutional news
-console.log(portal.forum);             // course forum topics
+console.log(portal.activities);        // próximas tarefas/avaliações
+console.log(portal.news);              // notícias institucionais
+console.log(portal.forum);             // tópicos do fórum do curso
 
-const all = await fetchAllClasses(session);  // current + past, by period
+const all = await fetchAllClasses(session);  // atuais + passadas, por período
 
-// Open a turma's virtual classroom and read its lesson topics + materials.
+// Abre a turma virtual de uma turma e lê seus tópicos de aula + materiais.
 const turma = portal.enrolledClasses.find((c) => c.frontEndIdTurma);
 if (turma?.frontEndIdTurma) {
   const ava = await openTurmaVirtual(session, turma.frontEndIdTurma);
@@ -65,10 +65,8 @@ if (turma?.frontEndIdTurma) {
 }
 ```
 
-Defaults target UFRN (`sigaa.ufrn.br` / `autenticacao.ufrn.br`); override via the
-`SigaaSession` constructor or the `SIGAA_BASE_URL` / `SIGAA_AUTH_BASE_URL` env vars.
+Os padrões apontam para a UFRN (`sigaa.ufrn.br` / `autenticacao.ufrn.br`); sobrescreva pelo construtor do `SigaaSession` ou pelas variáveis de ambiente `SIGAA_BASE_URL` / `SIGAA_AUTH_BASE_URL`.
 
-## Requirements
+## Requisitos
 
-Node.js ≥ 20 (uses native `fetch` with `Headers.getSetCookie()`). One runtime
-dependency: [`node-html-parser`](https://www.npmjs.com/package/node-html-parser) for parsing SIGAA's HTML.
+Node.js ≥ 20 (usa o `fetch` nativo com `Headers.getSetCookie()`). Uma dependência de runtime: [`node-html-parser`](https://www.npmjs.com/package/node-html-parser) para fazer o parsing do HTML do SIGAA.
