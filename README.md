@@ -13,8 +13,9 @@ Início, mas já lendo dados reais. Prontos:
 - **Histórico de turmas** (`turmas.jsf`, "Ver turmas anteriores"): todas as turmas, atuais e passadas, agrupadas por período.
 - **Turma virtual** (`ava/index.jsf`): abrir uma turma e ler quase tudo — Tópicos de Aula (com datas, conteúdo e materiais), participantes (docentes e discentes), notas do próprio aluno, frequência, tarefas, avaliações, notícias da turma, fóruns, referências, arquivos, questionários, enquetes e o plano de curso.
 - **Download de arquivos**: baixar qualquer material/arquivo da turma pelo `fileId` (`downloadTurmaFile`).
+- **Servidor MCP**: as funções acima expostas como ferramentas MCP por stdio (veja abaixo).
 
-Ainda não feito: algumas seções da AVA (Conteúdo/Página web, Vídeos, Linha do Tempo), escrita de dados e o servidor MCP. Veja [`docs/SITE.md`](docs/SITE.md) para como o site funciona (stack, CAS, navegação por ViewState/POST do JSF, códigos de horário).
+Ainda não feito: algumas seções da AVA (Conteúdo/Página web, Vídeos, Linha do Tempo) e escrita de dados. Veja [`docs/SITE.md`](docs/SITE.md) para como o site funciona (stack, CAS, navegação por ViewState/POST do JSF, códigos de horário).
 
 ## Como o login funciona
 
@@ -36,6 +37,48 @@ npm run portal           # busca e imprime o portal e o histórico de turmas em 
 ```
 
 As credenciais são lidas apenas de variáveis de ambiente. **Nunca faça commit do `.env`** — ele está no gitignore.
+
+## Servidor MCP
+
+Além da biblioteca, o pacote expõe um **servidor MCP** (Model Context Protocol)
+por stdio, para conectar em qualquer harness compatível (Claude Code, Claude
+Desktop, Codex, Cursor, …). O servidor lê as credenciais do ambiente e faz login
+automaticamente na primeira chamada.
+
+**Ferramentas:** `get_portal`, `get_all_classes`, `get_turma` (arg `frontEndIdTurma`),
+`download_file` (args `frontEndIdTurma`, `fileId`).
+
+```bash
+npm install && npm run build
+```
+
+Claude Code:
+
+```bash
+claude mcp add sigaa \
+  -e SIGAA_USERNAME=seu.login -e SIGAA_PASSWORD=sua-senha \
+  -- node /caminho/para/sigaa-mcp/dist/mcp.js
+```
+
+Ou via JSON (Claude Desktop / Codex / outros que leem `mcpServers`):
+
+```json
+{
+  "mcpServers": {
+    "sigaa": {
+      "command": "node",
+      "args": ["/caminho/para/sigaa-mcp/dist/mcp.js"],
+      "env": {
+        "SIGAA_USERNAME": "seu.login",
+        "SIGAA_PASSWORD": "sua-senha"
+      }
+    }
+  }
+}
+```
+
+Variáveis opcionais: `SIGAA_BASE_URL`, `SIGAA_AUTH_BASE_URL`, `SIGAA_DOWNLOAD_DIR`
+(onde `download_file` salva; padrão: diretório temporário).
 
 ## Uso
 
