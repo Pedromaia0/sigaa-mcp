@@ -2,6 +2,7 @@
   "name": "sigaa-mcp",
   "version": "0.0.1",
   "description": "Agent-oriented client for the SIGAA web interface (not the official API). Connects, fetches and — later — writes data on SIGAA for use by coding agents via MCP.",
+  "author": "Pedro Maia",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -14,8 +15,12 @@
   "engines": {
     "node": ">=20"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
+    "prepublishOnly": "npm run typecheck",
     "typecheck": "tsc --noEmit",
     "login": "node --experimental-strip-types --env-file=.env src/auth/login-cli.ts",
     "portal": "node --experimental-strip-types --env-file=.env src/portal/dump-cli.ts",

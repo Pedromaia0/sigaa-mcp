@@ -43,8 +43,10 @@ As credenciais são lidas apenas de variáveis de ambiente. **Nunca faça commit
 
 Além da biblioteca, o pacote expõe um **servidor MCP** (Model Context Protocol)
 por stdio, para conectar em qualquer harness compatível (Claude Code, Claude
-Desktop, Codex, Cursor, …). O servidor lê as credenciais do ambiente e faz login
-automaticamente na primeira chamada.
+Desktop, Codex, Cursor, Antigravity, opencode, Windsurf, Zed, …). O servidor lê
+as credenciais do ambiente e faz login automaticamente na primeira chamada.
+
+> Guia completo de instalação por harness: [`docs/INSTALL.md`](docs/INSTALL.md).
 
 **Ferramentas:** `get_portal`, `get_all_classes`, `get_turma` (arg
 `frontEndIdTurma`), `get_news_detail` (`frontEndIdTurma`, `newsId`),
@@ -53,16 +55,20 @@ automaticamente na primeira chamada.
 (`frontEndIdTurma`, `fileId`). Os detalhes de cada item são buscados
 individualmente pelo id (`news[].id`, `participants[].personId`), sob demanda.
 
+Depois de publicado no npm, basta `npx -y sigaa-mcp` como comando — sem clonar
+nada. Para rodar a partir do clone (desenvolvimento ou antes de publicar),
+gere o `dist/` primeiro:
+
 ```bash
 npm install && npm run build
 ```
 
-Claude Code:
+Claude Code (via npm):
 
 ```bash
 claude mcp add sigaa \
   -e SIGAA_USERNAME=seu.login -e SIGAA_PASSWORD=sua-senha \
-  -- node /caminho/para/sigaa-mcp/dist/mcp.js
+  -- npx -y sigaa-mcp
 ```
 
 Ou via JSON (Claude Desktop / Codex / outros que leem `mcpServers`):
@@ -71,8 +77,8 @@ Ou via JSON (Claude Desktop / Codex / outros que leem `mcpServers`):
 {
   "mcpServers": {
     "sigaa": {
-      "command": "node",
-      "args": ["/caminho/para/sigaa-mcp/dist/mcp.js"],
+      "command": "npx",
+      "args": ["-y", "sigaa-mcp"],
       "env": {
         "SIGAA_USERNAME": "seu.login",
         "SIGAA_PASSWORD": "sua-senha"
