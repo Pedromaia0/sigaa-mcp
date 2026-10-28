@@ -25,6 +25,8 @@ export interface EnrolledClass {
   /** The JSF component id used to open this turma's virtual classroom. */
   openComponentId?: string;
   openFormId?: string;
+  /** Stable turma handle used to open the virtual classroom (JSF postback param). */
+  frontEndIdTurma?: string;
 }
 
 /** An item in the per-class "Últimas Atualizações" feed. */
@@ -49,6 +51,15 @@ export interface UpcomingActivity {
   title: string;
 }
 
+/** An institutional news item (the portal's fading news scroller). */
+export interface NewsItem {
+  /** SIGAA news id, e.g. "73092295" (from the `noticia_<id>` anchor). */
+  id?: string;
+  title: string;
+  /** Teaser text; SIGAA truncates long ones with "...". */
+  description?: string;
+}
+
 /** A topic row in the course forum panel. */
 export interface ForumTopic {
   title: string;
@@ -64,6 +75,7 @@ export interface PortalData {
   enrolledClasses: EnrolledClass[];
   updates: ClassUpdate[];
   activities: UpcomingActivity[];
+  news: NewsItem[];
   forum: ForumTopic[];
   /** Course-forum panel heading, e.g. "FÓRUM DO CURSO DE CIENCIA DA COMPUTACAO". */
   forumTitle?: string;

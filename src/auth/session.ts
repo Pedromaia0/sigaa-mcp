@@ -141,10 +141,31 @@ export class SigaaSession {
    * require login() first, but you'll get the public/login page if unauthenticated.
    */
   async get(pathOrUrl: string): Promise<Response> {
-    const url = pathOrUrl.startsWith("http")
+    return this.followRedirects(this.resolve(pathOrUrl), 10);
+  }
+
+  /**
+   * Authenticated form POST (`application/x-www-form-urlencoded`), following
+   * any redirects. Used to replay JSF command links / form submits — see
+   * `buildFormBody` in util/jsf.ts.
+   */
+  async post(pathOrUrl: string, body: URLSearchParams): Promise<Response> {
+    const first = await this.fetchNoRedirect(this.resolve(pathOrUrl), {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+    if (first.status >= 300 && first.status < 400) {
+      const next = first.headers.get("location");
+      if (next) return this.followRedirects(new URL(next, first.url || this.baseUrl).toString(), 10);
+    }
+    return first;
+  }
+
+  private resolve(pathOrUrl: string): string {
+    return pathOrUrl.startsWith("http")
       ? pathOrUrl
       : `${this.baseUrl}${pathOrUrl.startsWith("/") ? "" : "/"}${pathOrUrl}`;
-    return this.followRedirects(url, 10);
   }
 
   // --- internals -----------------------------------------------------------

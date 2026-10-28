@@ -38,8 +38,9 @@ export function parseJsfLink(onclick: string | undefined): JsfPostback | null {
   const formMatch = onclick.match(/getElementById\('([^']+)'\)/);
   if (!formMatch?.[1]) return null;
 
-  // The params object is the `{...}` between the form lookup and the trailing args.
-  const objMatch = onclick.match(/\},\s*\{([^}]*)\}/);
+  // jsfcljs(document.getElementById('form'),{ ...params... },''): the params
+  // object is the `{...}` right after the form lookup.
+  const objMatch = onclick.match(/getElementById\('[^']+'\)\s*,\s*\{([^}]*)\}/);
   const params: Record<string, string> = {};
   if (objMatch?.[1]) {
     for (const pair of objMatch[1].matchAll(/'([^']+)'\s*:\s*'([^']*)'/g)) {
@@ -48,6 +49,51 @@ export function parseJsfLink(onclick: string | undefined): JsfPostback | null {
   }
 
   return { formId: formMatch[1], params };
+}
+
+/**
+ * Build the `application/x-www-form-urlencoded` body for submitting a JSF form.
+ *
+ * Gathers every successful control inside the form (hidden inputs, selects,
+ * checked radios/checkboxes, text inputs with a value) — crucially including
+ * `javax.faces.ViewState` — then layers the clicked command link's params on
+ * top. This reproduces what the browser's `jsfcljs(...)` serializer posts.
+ */
+export function buildFormBody(
+  root: HTMLElement,
+  formId: string,
+  extraParams: Record<string, string> = {},
+): URLSearchParams {
+  const body = new URLSearchParams();
+  const form = root.querySelector(`#${cssEscape(formId)}`);
+
+  if (form) {
+    for (const input of form.querySelectorAll("input")) {
+      const name = input.getAttribute("name");
+      if (!name) continue;
+      const type = (input.getAttribute("type") ?? "text").toLowerCase();
+      if (type === "submit" || type === "button" || type === "image") continue;
+      if ((type === "checkbox" || type === "radio") && input.getAttribute("checked") === null) {
+        continue;
+      }
+      body.set(name, input.getAttribute("value") ?? "");
+    }
+    for (const select of form.querySelectorAll("select")) {
+      const name = select.getAttribute("name");
+      if (!name) continue;
+      const selected =
+        select.querySelector("option[selected]") ?? select.querySelector("option");
+      body.set(name, selected?.getAttribute("value") ?? cleanText(selected?.text));
+    }
+  }
+
+  for (const [k, v] of Object.entries(extraParams)) body.set(k, v);
+  return body;
+}
+
+/** Escape a raw JSF id (which contains ':') for use in a CSS id selector. */
+export function cssEscape(id: string): string {
+  return id.replace(/([:.\[\]])/g, "\\$1");
 }
 
 /** Collapse whitespace and trim; `node-html-parser` already decodes entities. */

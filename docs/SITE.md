@@ -104,7 +104,7 @@ The landing page after login. ~90 KB of HTML with several panels. Parsed by
 | `#atualizacoes-turma` | per-class "Últimas Atualizações" feed — rows **in pairs**: `dd/mm/yyyy - CLASS (period)` then a title line like `Novo Tópico de Aula: …` |
 | `#formAtividades` | "Minhas atividades" upcoming — rows of `icon · due date (N dias) · CLASS <br> Kind: Title`. Task titles are `<a>` links; exam ("Avaliação") titles are plain text |
 | `#forum-portal` | course forum topics: title (`a[id*=mostrarForumMensagem]`), author, replies, datetime |
-| `#noticias-portal` | **AJAX-loaded** — server HTML only has `scroller-portal.js` + a `var portal="<hash>"` token; the news items are fetched client-side, so they are not in the initial HTML (TODO: replay that request) |
+| `#noticias-portal` | institutional news. The panel div only holds `scroller-portal.js`, but the items themselves are emitted **inline** as a JS array — `fcontent[n]="<p class='noticia'>…</p>"` — each with a title and description anchor `id="noticia_<id>"`. Parsed from the raw HTML, no extra request. (The "ver mais" popup at `/sigaa/noticias_comum.jsf?portal=<hash>` is the full ~10 MB archive — not used.) |
 
 ## Class history — `/sigaa/portais/discente/turmas.jsf`
 
@@ -115,6 +115,30 @@ and past, grouped by period. Parsed by `src/portal/parse-turmas.ts`:
   below it belong to that period until the next separator.
 - A **class** row: `CODE - NAME` (e.g. `DIM0127 - ARQUITETURA DE COMPUTADORES`),
   turma number, workload (`60h`), and the schedule code.
+
+## Virtual classroom (AVA) — `/sigaa/ava/index.jsf`
+
+Opening a turma from the portal is a **JSF postback**, not a link: the portal's
+`form_acessarTurmaVirtual` command link posts `frontEndIdTurma` + the component
+id + ViewState back to `discente.jsf`, and the server responds with the virtual
+classroom (AVA — Ambiente Virtual de Aprendizagem) at `/sigaa/ava/index.jsf`.
+
+`openTurmaVirtual(session, frontEndIdTurma)` reproduces this: it re-fetches the
+portal (fresh ViewState), finds the matching open link, replays the postback via
+`buildFormBody`, and parses the result. `frontEndIdTurma` comes from the
+`EnrolledClass` objects `fetchPortal` returns.
+
+Parsed by `src/portal/parse-turma-virtual.ts`:
+
+| Part | Data |
+|---|---|
+| header bar | `CODE - NAME (workload) (period)`, e.g. `DIM0127 - ARQUITETURA DE COMPUTADORES (60h) (2026.2)` |
+| `.topico-aula` | one lesson topic: `.titulo` = title + `(dd/mm/yyyy - dd/mm/yyyy)` range; `.conteudotopico` = body text + materials |
+| material links | `<a onclick="jsfcljs(…{'id':'<fileId>'}…,'_blank')">name</a>` — the download is itself a postback on `formAva` carrying that file `id`; we capture name + fileId + the form/component (actual download TODO) |
+
+The AVA has more sections in its left menu (Notícias, Avaliações, Participantes,
+Materiais, Questionários, Referências, Mensagens, Enquetes), each reached by a
+further postback — not yet parsed.
 
 ## Schedule codes
 
@@ -131,7 +155,7 @@ clock times (e.g. `M3` = 08:55–09:45) and the decoder live in
 
 ## Open questions / TODO
 
-- Replay the `#noticias-portal` AJAX call to capture news items.
-- Map the turma-virtual pages (frequência, notas, tópicos de aula, tarefas).
+- Trigger the material-download postback (`formAva` + file `id`) to fetch files.
+- Parse the other AVA sections (frequência, notas/avaliações, participantes, tarefas).
 - Catalogue which actions are plain GET vs JSF postbacks (for the write phase).
 - Confirm session lifetime / `tempoSessao` behavior and re-login strategy.

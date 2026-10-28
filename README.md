@@ -9,10 +9,11 @@ Scope: connect and fetch data now; write data later.
 Early, but reading real data. In place:
 
 - **CAS web login** → authenticated web session (`JSESSIONID`) reused for page requests.
-- **Discente portal** (`discente.jsf`): student info, enrolled classes (with decoded schedules), the per-class updates feed, upcoming activities (tasks/exams), and course-forum topics.
+- **Discente portal** (`discente.jsf`): student info, enrolled classes (with decoded schedules), the per-class updates feed, upcoming activities (tasks/exams), institutional news, and course-forum topics.
 - **Class history** (`turmas.jsf`, "Ver turmas anteriores"): all classes, current and past, grouped by period.
+- **Virtual classroom** (`ava/index.jsf`): open a turma and read its lesson topics (Tópicos de Aula) with dates, content, and attached materials.
 
-Not built yet: news (AJAX-loaded), turma-virtual pages (grades, attendance), writes, and the MCP server. See [`docs/SITE.md`](docs/SITE.md) for how the site works (stack, CAS, JSF ViewState/POST navigation, schedule codes).
+Not built yet: material downloads, the other AVA sections (grades, attendance, participants), writes, and the MCP server. See [`docs/SITE.md`](docs/SITE.md) for how the site works (stack, CAS, JSF ViewState/POST navigation, schedule codes).
 
 ## How login works
 
@@ -38,7 +39,12 @@ Credentials are read from environment variables only. **Never commit `.env`** �
 ## Usage
 
 ```ts
-import { SigaaSession, fetchPortal, fetchAllClasses } from "sigaa-mcp";
+import {
+  SigaaSession,
+  fetchPortal,
+  fetchAllClasses,
+  openTurmaVirtual,
+} from "sigaa-mcp";
 
 const session = new SigaaSession();
 await session.login(process.env.SIGAA_USERNAME!, process.env.SIGAA_PASSWORD!);
@@ -46,9 +52,17 @@ await session.login(process.env.SIGAA_USERNAME!, process.env.SIGAA_PASSWORD!);
 const portal = await fetchPortal(session);
 console.log(portal.student.name, portal.enrolledClasses.length);
 console.log(portal.activities);        // upcoming tasks/exams
+console.log(portal.news);              // institutional news
 console.log(portal.forum);             // course forum topics
 
 const all = await fetchAllClasses(session);  // current + past, by period
+
+// Open a turma's virtual classroom and read its lesson topics + materials.
+const turma = portal.enrolledClasses.find((c) => c.frontEndIdTurma);
+if (turma?.frontEndIdTurma) {
+  const ava = await openTurmaVirtual(session, turma.frontEndIdTurma);
+  console.log(ava.header, ava.topics.length);
+}
 ```
 
 Defaults target UFRN (`sigaa.ufrn.br` / `autenticacao.ufrn.br`); override via the

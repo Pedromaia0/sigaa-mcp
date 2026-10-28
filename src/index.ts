@@ -2,10 +2,12 @@ export { SigaaSession, SigaaAuthError } from "./auth/session.ts";
 export type { SigaaSessionConfig } from "./auth/session.ts";
 export { CookieJar } from "./auth/cookie-jar.ts";
 
-export { fetchPortal, fetchAllClasses } from "./portal/portal.ts";
+export { fetchPortal, fetchAllClasses, openTurmaVirtual } from "./portal/portal.ts";
 export { parsePortal } from "./portal/parse-portal.ts";
 export { parseTurmas } from "./portal/parse-turmas.ts";
+export { parseTurmaVirtual } from "./portal/parse-turma-virtual.ts";
 export * from "./portal/types.ts";
+export * from "./portal/turma-virtual-types.ts";
 
 export {
   parseSchedule,

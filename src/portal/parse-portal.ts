@@ -20,6 +20,7 @@ import type {
   EnrolledClass,
   ClassUpdate,
   UpcomingActivity,
+  NewsItem,
   ForumTopic,
 } from "./types.ts";
 
@@ -30,6 +31,7 @@ export function parsePortal(html: string): PortalData {
     enrolledClasses: parseEnrolledClasses(root),
     updates: parseUpdates(root),
     activities: parseActivities(root),
+    news: parseNews(html),
     forum: parseForum(root),
     forumTitle: cleanText(root.querySelector("#forum-portal h4")?.text) || undefined,
   };
@@ -90,6 +92,7 @@ function parseEnrolledClasses(root: HTMLElement): EnrolledClass[] {
       schedule: scheduleCode ? parseSchedule(scheduleCode) : [],
       openFormId: postback?.formId,
       openComponentId: postback ? Object.keys(postback.params)[0] : undefined,
+      frontEndIdTurma: postback?.params["frontEndIdTurma"],
     });
   }
 
@@ -160,6 +163,37 @@ function parseActivities(root: HTMLElement): UpcomingActivity[] {
   }
 
   return activities;
+}
+
+/**
+ * Institutional news from the portal's fading scroller. Not in the DOM: the
+ * items are emitted inline as a JS array, `fcontent[n]="<p…>…</p>"`. Each entry
+ * holds a title anchor and a description anchor, both `id="noticia_<id>"`.
+ */
+function parseNews(html: string): NewsItem[] {
+  const news: NewsItem[] = [];
+
+  for (const m of html.matchAll(/fcontent\[\d+\]\s*=\s*"((?:\\.|[^"\\])*)"/g)) {
+    const raw = m[1];
+    if (!raw) continue;
+    // Undo the JS string escaping (\" \\ \/) before handing it to the parser.
+    const decoded = raw.replace(/\\"/g, '"').replace(/\\\//g, "/").replace(/\\\\/g, "\\");
+    const frag = parse(decoded);
+
+    const titleEl = frag.querySelector("p.noticia a") ?? frag.querySelector("a");
+    const descEl = frag.querySelector("p.descricao a");
+    const title = cleanText(titleEl?.text);
+    if (!title) continue;
+
+    const id = titleEl?.getAttribute("id")?.replace(/^noticia_/, "");
+    news.push({
+      id: id || undefined,
+      title,
+      description: cleanText(descEl?.text) || undefined,
+    });
+  }
+
+  return news;
 }
 
 function parseForum(root: HTMLElement): ForumTopic[] {
